@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+
+
+Widget dateField({
+  required String label,
+  String? hint,
+  TextEditingController? controller,
+  String? Function(String?)? validator,
+  TextInputType keyboardType = TextInputType.text,
+  IconData? prefixIcon,
+  required Function() pickDate,
+  bool obscureText = false,
+  void Function(String)? onChanged,
+}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 1.0),
+    child: TextFormField(
+      controller: controller,
+      validator: validator,
+      readOnly: true,
+      onTap: pickDate,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      onChanged: onChanged,
+      style: TextStyle(fontSize: 13, fontStyle: FontStyle.normal, color: Colors.black),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(fontSize: 13),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        suffixIcon: Icon(Icons.calendar_today),
+        filled: true,
+        fillColor: Colors.grey[100],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Colors.blue),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+      ),
+    ),
+  );
+}
