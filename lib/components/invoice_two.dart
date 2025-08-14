@@ -183,7 +183,7 @@ class _InvoiceTwoState extends State<InvoiceTwo> {
                                     ),
 
                                     Text(
-                                      "9903992",
+                                      transaction.transactionId.toString(),
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyLarge!

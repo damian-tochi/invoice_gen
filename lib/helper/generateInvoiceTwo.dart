@@ -46,7 +46,7 @@ Future<Uint8List> generateInvoicePdfTwo(TransactionObject transaction) async {
                       pw.Text(transaction.invoiceDate, style: pw.TextStyle(fontSize: 11)),
                       pw.SizedBox(height: 10),
                       pw.Text("Invoice No:", style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                      pw.Text("9903992", style: pw.TextStyle(fontSize: 11)),
+                      pw.Text(transaction.transactionId.toString(), style: pw.TextStyle(fontSize: 11)),
                     ],
                   ),
                   pw.Column(

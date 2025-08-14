@@ -6,8 +6,11 @@ import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'app_block/account_cubit.dart';
 import 'app_block/transactions_cubit.dart';
 import 'constants/routes.dart';
+import 'helper/transaction_id_helper.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await TransactionIdManager.init();
   Get.put(AppBlockCubit());
   Get.put(AccountCubit());
   runApp(const MyApp());

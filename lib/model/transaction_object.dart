@@ -13,6 +13,8 @@ class TransactionObject {
   String taxDeduction;
   Uint8List? signature;
   List<ItemsObject> items;
+  int transactionId;
+  int invoiceType;
 
   TransactionObject({
     required this.clientObject,
@@ -24,5 +26,7 @@ class TransactionObject {
     required this.taxDeduction,
     this.signature,
     required this.items,
+    required this.transactionId,
+    required this.invoiceType,
   });
 }

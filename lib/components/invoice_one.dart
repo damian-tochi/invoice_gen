@@ -226,7 +226,7 @@ class _InvoiceOneState extends State<InvoiceOne> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "000001",
+                transaction.transactionId.toString(),
                 style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   color: Colors.black,
                   fontSize: 10,

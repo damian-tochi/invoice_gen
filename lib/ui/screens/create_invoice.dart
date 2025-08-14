@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:invoice_gen/model/client_object.dart';
@@ -12,7 +15,9 @@ import '../../app_block/transactions_cubit.dart';
 import '../../components/date_field.dart';
 import '../../components/dropdown_menu.dart';
 import '../../components/text_field.dart';
-
+import '../../constants/preferences_service.dart';
+import '../../db/client_db.dart';
+import '../../helper/transaction_id_helper.dart';
 
 class CreateInvoicePage extends StatefulWidget {
   const CreateInvoicePage({super.key});
@@ -32,7 +37,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   final _invoiceDateController = TextEditingController();
 
   final SignatureController _signatureController = SignatureController(
-    penStrokeWidth: 3,
+    penStrokeWidth: 2,
     penColor: Colors.black,
     exportBackgroundColor: Colors.white,
   );
@@ -42,10 +47,34 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   double get subtotal => _items.fold(0.0, (sum, item) {
     return sum + (item.quantity * item.price);
   });
+  double _tax = 0.0;
 
-  double get tax => subtotal * 0.075;
+  double get tax => subtotal * _tax;
 
   double get total => subtotal + tax;
+
+  List<ClientObject> _customers = [];
+
+  ClientObject? _selectedCustomer;
+
+  String _searchTerm = '';
+
+  final bool _sortAscending = true;
+
+  String? _signaturePath;
+
+  bool loadSavedSignature = false;
+
+  Future<void> _loadPrefs() async {
+    final prefs = await PreferenceService.load();
+    if (prefs != null) {
+      setState(() {
+        double tax = prefs.taxDeduction;
+        _signaturePath = prefs.signaturePath;
+        _tax = tax / 100;
+      });
+    }
+  }
 
   void _addItem() {
     setState(() {
@@ -60,51 +89,174 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     });
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadCustomers() async {
+    final data = await CustomerDB.instance.getCustomers(
+      search: _searchTerm,
+      ascending: _sortAscending,
+    );
+    setState(() => _customers = data);
+  }
+
+  Future<void> _loadCustomersAndShowDialog() async {
+    await _loadCustomers();
+    _showCustomersDialog();
+  }
+
+  void _showCustomersDialog() {
+    List<ClientObject> filteredCustomers = List.from(_customers);
+
+    void filterCustomers(String query) {
+      _searchTerm = query;
+      filteredCustomers = _customers
+          .where(
+            (c) =>
+                c.clientName.toLowerCase().contains(query.toLowerCase()) ||
+                c.clientEmail.toLowerCase().contains(query.toLowerCase()),
+          )
+          .toList();
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Import Customer"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      hintText: "Search customer...",
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        filterCustomers(value);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 300,
+                    width: double.maxFinite,
+                    child: Expanded(
+                      child: filteredCustomers.isEmpty
+                          ? const Center(child: Text("No matching customers"))
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filteredCustomers.length,
+                              itemBuilder: (context, index) {
+                                final customer = filteredCustomers[index];
+                                return ListTile(
+                                  title: Text(customer.clientName),
+                                  subtitle: Text(customer.clientEmail),
+                                  onTap: () {
+                                    Navigator.pop(context, customer);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((selected) {
+      if (selected != null && selected is ClientObject) {
+        setState(() {
+          _selectedCustomer = selected;
+          _clientAddressController.text = _selectedCustomer!.clientAddress;
+          _clientNameController.text = _selectedCustomer!.clientName;
+          _clientEmailController.text = _selectedCustomer!.clientEmail;
+        });
+      }
+    });
+  }
+
   Future<void> _submitInvoice(AppBlockCubit cubit) async {
-    if (_formKey.currentState!.validate()) {
-      if (_signatureController.isEmpty) {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_signatureController.isEmpty && !loadSavedSignature) {
+      Get.snackbar(
+        'Missing Signature',
+        'Please provide a signature before submitting.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    try {
+      Uint8List? signatureBytes = await _signatureController.toPngBytes();
+
+      if (signatureBytes == null && _signaturePath != null) {
+        signatureBytes = await File(_signaturePath!).readAsBytes();
+      }
+
+      if (signatureBytes == null) {
         Get.snackbar(
-          'Missing Signature',
-          'Please provide a signature before submitting.',
+          'Error',
+          'Unable to load signature.',
           snackPosition: SnackPosition.BOTTOM,
         );
         return;
       }
 
-      final Uint8List? signatureBytes = await _signatureController.toPngBytes();
+      var transactionId = await TransactionIdManager.getNextTransactionId();
 
-      if (signatureBytes != null) {
-        ClientObject client = ClientObject(
-          clientAddress: _clientAddressController.text,
-          clientName: _clientNameController.text,
-          clientEmail: _clientEmailController.text,
-          clientPhone: '',
-        );
-        TransactionObject transactionObject = TransactionObject(
-          clientObject: client,
-          invoiceTitle: _titleController.text,
-          invoiceDate: _invoiceDateController.text,
-          paymentStatus: _selectedStatus,
-          total: total,
-          subTotal: subtotal.toString(),
-          taxDeduction: tax.toString(),
-          signature: signatureBytes,
-          items: _items,
-        );
-        cubit.transactionObject = transactionObject;
-        try {
-          Get.to(() => PreviewInvoicePage());
-        } catch (e) {
-          Get.snackbar('Navigation error:', '$e',
-            snackPosition: SnackPosition.BOTTOM,
+      final client = _selectedCustomer ??
+          ClientObject(
+            clientAddress: _clientAddressController.text,
+            clientName: _clientNameController.text,
+            clientEmail: _clientEmailController.text,
+            clientPhone: '',
           );
-          if (kDebugMode) {
-            print("Navigation error: $e");
-          }
-        }
+
+      final transactionObject = TransactionObject(
+        clientObject: client,
+        invoiceTitle: _titleController.text,
+        invoiceDate: _invoiceDateController.text,
+        paymentStatus: _selectedStatus,
+        total: total,
+        subTotal: subtotal.toString(),
+        taxDeduction: tax.toString(),
+        signature: signatureBytes,
+        items: _items,
+        transactionId: transactionId,
+        invoiceType: cubit.selectedInvoice
+      );
+
+      cubit.transactionObject = transactionObject;
+
+      Get.to(() => PreviewInvoicePage());
+    } catch (e, stackTrace) {
+      Get.snackbar(
+        'Error',
+        'Failed to prepare invoice: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      if (kDebugMode) {
+        print("Error: $e\n$stackTrace");
       }
     }
   }
+
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -128,12 +280,35 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     super.dispose();
   }
 
+  void importSignature() {
+    setState(() {
+      loadSavedSignature = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Invoice'),
-        titleTextStyle: TextStyle(fontSize: 16, color: Colors.black),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'Create Invoice',
+              style: TextStyle(fontSize: 16, color: Colors.black),
+            ),
+
+            GestureDetector(
+              onTap: _loadCustomersAndShowDialog,
+              child: SvgPicture.asset(
+                'assets/icons/filter_ico.svg',
+                width: 24,
+                height: 24,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -273,7 +448,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     _buildAmountRow('Subtotal', subtotal),
-                    _buildAmountRow('Tax (7.5%)', tax),
+                    _buildAmountRow('Tax (${(_tax * 100).toInt()}%)', tax),
                     const SizedBox(height: 4),
                     _buildAmountRow('Total', total, bold: true),
                   ],
@@ -286,16 +461,29 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Signature(
-                controller: _signatureController,
-                height: 150,
-                backgroundColor: Colors.grey[200]!,
-              ),
+              loadSavedSignature
+                  ? Image.file(File(_signaturePath!), height: 150)
+                  : Signature(
+                      controller: _signatureController,
+                      height: 150,
+                      backgroundColor: Colors.grey[200]!,
+                    ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (_signaturePath != null && loadSavedSignature == false)
+                    TextButton(
+                      onPressed: () => importSignature(),
+                      child: const Text('Import'),
+                    ),
+                  Spacer(),
                   TextButton(
-                    onPressed: () => _signatureController.clear(),
+                    onPressed: () => {
+                      setState(() {
+                        loadSavedSignature = false;
+                      }),
+                      _signatureController.clear(),
+                    },
                     child: const Text('Clear'),
                   ),
                 ],

@@ -62,7 +62,7 @@ class _InvoiceThreeState extends State<InvoiceThree> {
                 ),
               ),
               Text(
-                'No: ${transaction.invoiceTitle}',
+                'No: ${transaction.transactionId}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],

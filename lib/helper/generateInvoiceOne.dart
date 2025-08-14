@@ -106,7 +106,7 @@ Future<Uint8List> generateInvoicePdf(TransactionObject transaction) async {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text("000001", style: pw.TextStyle(fontSize: 10)),
+                      pw.Text(transaction.transactionId.toString(), style: pw.TextStyle(fontSize: 10)),
                       pw.Text(transaction.invoiceDate, style: pw.TextStyle(fontSize: 10)),
                       if (transaction.paymentStatus != "Paid")
                         pw.Text(transaction.invoiceDate, style: pw.TextStyle(fontSize: 10)),

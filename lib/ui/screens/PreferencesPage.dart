@@ -21,7 +21,7 @@ class _PreferencePageState extends State<PreferencePage> {
   Color _color2 = Colors.green;
   String? _signaturePath;
   final SignatureController _controller = SignatureController(
-    penStrokeWidth: 3,
+    penStrokeWidth: 2,
     penColor: Colors.black,
   );
 

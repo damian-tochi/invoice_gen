@@ -4,10 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:invoice_gen/components/invoice_three.dart';
 import 'package:invoice_gen/components/invoice_two.dart';
+import 'package:invoice_gen/model/transaction_object.dart';
 import '../../app_block/transactions_cubit.dart';
 import 'package:get/get.dart';
 import '../../app_block/state.dart';
 import '../../components/invoice_one.dart';
+import '../../db/client_db.dart';
+import '../../db/transactions_db.dart';
 import '../../helper/generateInvoiceOne.dart';
 import '../../helper/generateInvoiceTwo.dart';
 
@@ -211,8 +214,8 @@ class _PreviewInvoicePageState extends State<PreviewInvoicePage> {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     onPressed: () {
-                      int selectedInv =
-                          Get.find<AppBlockCubit>().selectedInvoice;
+                      saveTransactions(transaction);
+                      int selectedInv = Get.find<AppBlockCubit>().selectedInvoice;
                       if (selectedInv == 1) {
                         generateInvoicePdf(transaction);
                       } else if (selectedInv == 2) {
@@ -245,4 +248,9 @@ class _PreviewInvoicePageState extends State<PreviewInvoicePage> {
       ..translate(offsetX, 0) // only horizontal centering
       ..scale(fitScale);
   }
+
+  Future<void> saveTransactions(TransactionObject transaction) async {
+    await TransactionDB.instance.saveTransaction(transaction);
+  }
+
 }

@@ -56,4 +56,5 @@ class AppBlockCubit extends Cubit<AppBlockState> {
   void setInvoice(int invoice) {
     emit(state.copyWith(invoice: invoice));
   }
+
 }
