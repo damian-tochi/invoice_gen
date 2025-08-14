@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:invoice_gen/db/transactions_db.dart';
+import 'package:invoice_gen/model/transaction_object.dart';
 import 'package:invoice_gen/ui/screens/preview_invoice.dart';
 
 import '../../app_block/account_cubit.dart';
@@ -24,6 +26,7 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   AccountInfo? info;
+  List<TransactionObject> _recentTransactions = [];
 
   @override
   void initState() {
@@ -40,6 +43,7 @@ class _HomePageState extends State<HomePage>
       vsync: this,
       duration: Duration(milliseconds: 500),
     );
+    getLastTransactions();
   }
 
   void _handleHorizontalDragUpdate(DragUpdateDetails details) {
@@ -51,6 +55,17 @@ class _HomePageState extends State<HomePage>
     if (_controller.value > 0.3) {
       _openDrawer();
     }
+  }
+
+  Future<void> getLastTransactions() async {
+    List<TransactionObject> recentTransactions = await TransactionDB.instance.getTransactions(
+      sortBy: 'invoiceDate',
+      asc: false,
+      limit: 4,
+    );
+    setState(() {
+      _recentTransactions = recentTransactions;
+    });
   }
 
   void _openDrawer() => Navigator.of(context).push(
@@ -108,21 +123,23 @@ class _HomePageState extends State<HomePage>
             children: [
               Hero(
                 tag: 'profileImage',
-                createRectTween: (begin, end) => RectTween(begin: begin, end: end),
+                createRectTween: (begin, end) =>
+                    RectTween(begin: begin, end: end),
                 child: Material(
                   color: Colors.transparent,
                   child: GestureDetector(
                     onTap: _openDrawer,
                     child: CircleAvatar(
                       radius: 18.5,
-                      backgroundImage: (info != null && info!.logoPath.isNotEmpty)
+                      backgroundImage:
+                          (info != null && info!.logoPath.isNotEmpty)
                           ? FileImage(File(info!.logoPath))
                           : null,
                       child: (info == null || info!.logoPath.isEmpty)
                           ? Icon(Icons.person, color: Colors.black87, size: 18)
                           : null,
                     ),
-                  )
+                  ),
                 ),
               ),
               Container(
@@ -248,15 +265,40 @@ class _HomePageState extends State<HomePage>
 
                       const SizedBox(height: 20),
 
-                      const Text(
-                        'None',
-                        textAlign: TextAlign.start,
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _recentTransactions.isEmpty
+                          ? const Text(
+                              'None',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )
+                          : Column(
+                              children: _recentTransactions.map((tx) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        tx.invoiceDate,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      Text(
+                                        tx.clientObject.clientName.toString(),
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
                     ],
                   ),
                 ),
@@ -270,4 +312,3 @@ class _HomePageState extends State<HomePage>
     );
   }
 }
-

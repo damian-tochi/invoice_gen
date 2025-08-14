@@ -45,7 +45,8 @@ class TransactionDB {
   Future<List<TransactionObject>> getTransactions({
     String? search,
     String sortBy = 'invoiceDate',
-    bool asc = false,
+    bool asc = true,
+    int? limit,
   }) async {
     final db = await _db;
     String order = '$sortBy ${asc ? 'ASC' : 'DESC'}';
@@ -69,6 +70,7 @@ class TransactionDB {
     INNER JOIN customers ON transactions.clientId = customers.id
     $where
     ORDER BY $order
+     ${limit != null ? 'LIMIT $limit' : ''}
   ''', whereArgs);
 
     List<TransactionObject> transactions = [];
