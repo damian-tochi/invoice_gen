@@ -9,7 +9,6 @@ import '../../app_block/transactions_cubit.dart';
 import 'package:get/get.dart';
 import '../../app_block/state.dart';
 import '../../components/invoice_one.dart';
-import '../../db/client_db.dart';
 import '../../db/transactions_db.dart';
 import '../../helper/generateInvoiceOne.dart';
 import '../../helper/generateInvoiceTwo.dart';
